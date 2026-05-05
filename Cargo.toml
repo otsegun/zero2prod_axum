@@ -3,6 +3,9 @@ name = "zero2prod_axum"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+path = "src/lib.rs"
+
 [dependencies]
 axum = "0.8.9"
 tokio = { version = "1.52.2", features = ["macros", "rt-multi-thread"] }
