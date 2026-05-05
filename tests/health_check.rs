@@ -1,7 +1,7 @@
 #[tokio::test]
 async fn health_check_works() {
     // Arrange
-    spawn_app().await;
+    let addr = spawn_app().await;
 
     // We need to bring in `reqwest`
     // to perform HTTP requests against our application.
@@ -9,7 +9,7 @@ async fn health_check_works() {
 
     // Act
     let response = client
-        .get("http://127.0.0.1:8000/health_check")
+        .get(format!("{}/health_check", addr))
         .send()
         .await
         .expect("Failed to execute requst.");
@@ -21,6 +21,6 @@ async fn health_check_works() {
 
 // launch our application in the background ~somehow~
 async fn spawn_app() -> String {
-    let addr = zero2prod_axum::run().await;
+    let addr = zero2prod_axum::spawn_for_test().await;
     format!("http://{}", addr)
 }
