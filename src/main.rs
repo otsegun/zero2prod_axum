@@ -1,3 +1,20 @@
-fn main() {
-    println!("Hello, world!");
+use axum::{Router, routing::get};
+
+async fn greet() -> &'static str {
+    "Hello, World!\n"
+}
+
+async fn health_check() {
+    todo!()
+}
+#[tokio::main]
+async fn main() {
+    // build our application with a single route
+    let app = Router::new().route("/", get(greet));
+
+    // run our app with hyper, listening globally on port 3000
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:8000")
+        .await
+        .unwrap();
+    axum::serve(listener, app).await.unwrap();
 }
