@@ -1,19 +1,30 @@
 use std::net::SocketAddr;
 
-use axum::{Router, http::StatusCode, routing::get};
+use axum::{
+    Router,
+    http::StatusCode,
+    // http::Response
+    routing::{get, post},
+};
 
 // routes
 pub fn app() -> Router {
     Router::new()
         .route("/", get(greet))
         .route("/health_check", get(health_check))
+        .route("/subscriptions", post(subscribe))
 }
 
+// handlers
 async fn greet() -> &'static str {
     "Hello, World!\n"
 }
 
 async fn health_check() -> StatusCode {
+    StatusCode::OK
+}
+
+async fn subscribe() -> StatusCode {
     StatusCode::OK
 }
 
