@@ -1,11 +1,17 @@
 use std::net::SocketAddr;
 
 use axum::{
-    Router,
+    Form, Router,
     http::StatusCode,
-    // http::Response
     routing::{get, post},
 };
+
+// data types
+#[derive(serde::Deserialize)]
+struct FormData {
+    email: String,
+    name: String,
+}
 
 // routes
 pub fn app() -> Router {
@@ -24,7 +30,7 @@ async fn health_check() -> StatusCode {
     StatusCode::OK
 }
 
-async fn subscribe() -> StatusCode {
+async fn subscribe(Form(form_data): Form<FormData>) -> StatusCode {
     StatusCode::OK
 }
 
