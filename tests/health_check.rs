@@ -1,3 +1,23 @@
+use std::net::SocketAddr;
+
+use zero2prod_axum::startup::app;
+
+// entry point for tests, to be called by tests
+async fn spawn_for_test() -> SocketAddr {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(listener, app()).await.unwrap();
+    });
+    addr
+}
+
+// launch our application in the background ~somehow~
+async fn spawn_app() -> String {
+    let addr = spawn_for_test().await;
+    format!("http://{}", addr)
+}
+
 #[tokio::test]
 async fn subscribe_returns_a_200_for_valid_form_data() {
     //Arrange
@@ -67,10 +87,4 @@ async fn health_check_works() {
     // Assert
     assert!(response.status().is_success());
     assert_eq!(Some(0), response.content_length());
-}
-
-// launch our application in the background ~somehow~
-async fn spawn_app() -> String {
-    let addr = zero2prod_axum::spawn_for_test().await;
-    format!("http://{}", addr)
 }
