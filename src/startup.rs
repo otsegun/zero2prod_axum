@@ -2,6 +2,7 @@ use axum::{
     Router,
     routing::{get, post},
 };
+use tokio::net::TcpListener;
 
 use crate::routes::{health_check, subscribe};
 
@@ -14,13 +15,7 @@ pub fn app() -> Router {
 }
 
 // entry point for running app normally, to be called by main
-pub async fn run() -> Result<(), std::io::Error> {
-    // create listener
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:8000")
-        .await
-        .unwrap();
-
+pub async fn run(listener: TcpListener) -> Result<(), std::io::Error> {
     println!("Listening on {}", listener.local_addr().unwrap());
-
     axum::serve(listener, app()).await
 }
