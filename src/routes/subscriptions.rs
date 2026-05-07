@@ -2,10 +2,10 @@ use axum::{Form, http::StatusCode};
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
-    email: String,
-    name: String,
+    _email: String,
+    _name: String,
 }
 
-pub async fn subscribe(Form(form_data): Form<FormData>) -> StatusCode {
+pub async fn subscribe(Form(_form_data): Form<FormData>) -> StatusCode {
     StatusCode::OK
 }
