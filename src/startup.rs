@@ -13,7 +13,7 @@ pub fn app(db_pool: PgPool) -> Router {
         // .route("/", axum::routing::get(greet))
         .route("/health_check", get(health_check))
         .route("/subscriptions", post(subscribe))
-        .with_state(db_pool.clone())
+        .with_state(db_pool)
 }
 
 // entry point for running app normally, to be called by main
