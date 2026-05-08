@@ -1,5 +1,9 @@
-use sqlx::{Connection, PgConnection, PgPool};
-use zero2prod_axum::{configuration::get_configuration, startup::app};
+use sqlx::{Connection, Executor, PgConnection, PgPool};
+use uuid::Uuid;
+use zero2prod_axum::{
+    configuration::{DatabaseSettings, get_configuration},
+    startup::app,
+};
 
 pub struct TestApp {
     pub address: String,
@@ -10,13 +14,13 @@ pub struct TestApp {
 async fn spawn_for_test() -> TestApp {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
+    let mut configuration = get_configuration().expect("Failed to read configuration.");
+    configuration.database.database_name = Uuid::new_v4().to_string();
 
-    let configuration = get_configuration().expect("Failed to read configuration.");
-
-    let connection_pool = PgPool::connect(&configuration.database.connection_string())
-        .await
-        .expect("Failed to connect to Postgres.");
+    // Create connection pool
+    let connection_pool = configure_database(&configuration.database).await;
     let connection_pool_copy = connection_pool.clone();
+
     tokio::spawn(async move {
         axum::serve(listener, app(connection_pool)).await.unwrap();
     });
@@ -24,6 +28,31 @@ async fn spawn_for_test() -> TestApp {
         address: format!("http://{}", addr.to_string()),
         db_pool: connection_pool_copy,
     }
+}
+
+pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
+    // Create database connection without db to connect to postgres instance
+    let mut connection: PgConnection =
+        PgConnection::connect(&config.connection_string_without_db())
+            .await
+            .expect("Failed to connect to Postgres");
+
+    connection
+        .execute(format!(r#"CREATE DATABASE "{}";"#, config.database_name).as_str())
+        .await
+        .expect("Failed to create database.");
+
+    // Migrate databse
+    let connection_pool = PgPool::connect(&config.connection_string())
+        .await
+        .expect("Failed to connect to Postgres.");
+
+    sqlx::migrate!("./migrations")
+        .run(&connection_pool)
+        .await
+        .expect("Failed to migrate the database");
+
+    connection_pool
 }
 
 // launch our application in the background ~somehow~
@@ -36,13 +65,6 @@ async fn spawn_app() -> TestApp {
 async fn subscribe_returns_a_200_for_valid_form_data() {
     //Arrange
     let app_values = spawn_app().await;
-    let configuration = get_configuration().expect("Failed to read configuration");
-    let connection_string = configuration.database.connection_string();
-
-    let mut connection = PgConnection::connect(&connection_string)
-        .await
-        .expect("Failed to connect to Postgres.");
-
     let client = reqwest::Client::new();
 
     //Act
@@ -59,7 +81,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
     assert_eq!(200, response.status().as_u16());
 
     let saved = sqlx::query!("SELECT email, name FROM subscriptions",)
-        .fetch_one(&mut connection)
+        .fetch_one(&app_values.db_pool)
         .await
         .expect("Failed to fetch saved subscription.");
 
