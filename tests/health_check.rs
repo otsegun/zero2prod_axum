@@ -1,28 +1,41 @@
-use std::net::SocketAddr;
-
-use sqlx::{Connection, PgConnection};
+use sqlx::{Connection, PgConnection, PgPool};
 use zero2prod_axum::{configuration::get_configuration, startup::app};
 
+pub struct TestApp {
+    pub address: String,
+    pub db_pool: PgPool,
+}
+
 // entry point for tests, to be called by tests
-async fn spawn_for_test() -> SocketAddr {
+async fn spawn_for_test() -> TestApp {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
+
+    let configuration = get_configuration().expect("Failed to read configuration.");
+
+    let connection_pool = PgPool::connect(&configuration.database.connection_string())
+        .await
+        .expect("Failed to connect to Postgres.");
+    let connection_pool_copy = connection_pool.clone();
     tokio::spawn(async move {
-        axum::serve(listener, app()).await.unwrap();
+        axum::serve(listener, app(connection_pool)).await.unwrap();
     });
-    addr
+    TestApp {
+        address: format!("http://{}", addr.to_string()),
+        db_pool: connection_pool_copy,
+    }
 }
 
 // launch our application in the background ~somehow~
-async fn spawn_app() -> String {
-    let addr = spawn_for_test().await;
-    format!("http://{}", addr)
+async fn spawn_app() -> TestApp {
+    let test_app = spawn_for_test().await;
+    test_app
 }
 
 #[tokio::test]
 async fn subscribe_returns_a_200_for_valid_form_data() {
     //Arrange
-    let app_address = spawn_app().await;
+    let app_values = spawn_app().await;
     let configuration = get_configuration().expect("Failed to read configuration");
     let connection_string = configuration.database.connection_string();
 
@@ -35,7 +48,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
     //Act
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
     let response = client
-        .post(&format!("{}/subscriptions", &app_address))
+        .post(&format!("{}/subscriptions", &app_values.address))
         .header("Content-Type", "application/x-www-form-urlencoded")
         .body(body)
         .send()
@@ -57,7 +70,7 @@ async fn subscribe_returns_a_200_for_valid_form_data() {
 #[tokio::test]
 async fn subscribe_returns_a_422_when_data_is_missing() {
     // Arrange
-    let app_address = spawn_app().await;
+    let app_values = spawn_app().await;
     let client = reqwest::Client::new();
     let test_cases = vec![
         ("name=le%20guin", "missing the email"),
@@ -67,7 +80,7 @@ async fn subscribe_returns_a_422_when_data_is_missing() {
     for (invalid_body, error_message) in test_cases {
         // Act
         let response = client
-            .post(&format!("{}/subscriptions", &app_address))
+            .post(&format!("{}/subscriptions", &app_values.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(invalid_body)
             .send()
@@ -87,7 +100,7 @@ async fn subscribe_returns_a_422_when_data_is_missing() {
 #[tokio::test]
 async fn health_check_works() {
     // Arrange
-    let addr = spawn_app().await;
+    let test_app = spawn_app().await;
 
     // We need to bring in `reqwest`
     // to perform HTTP requests against our application.
@@ -95,7 +108,7 @@ async fn health_check_works() {
 
     // Act
     let response = client
-        .get(format!("{}/health_check", addr))
+        .get(format!("{}/health_check", &test_app.address))
         .send()
         .await
         .expect("Failed to execute requst.");
