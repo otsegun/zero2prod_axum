@@ -10,13 +10,19 @@ pub struct FormData {
 }
 
 pub async fn subscribe(State(state): State<PgPool>, Form(form_data): Form<FormData>) -> StatusCode {
+    //Generate a random unique identifier
+    let request_id = Uuid::new_v4();
     //Log subscriber email and name
     log::info!(
-        "Adding '{}' '{}' as a new subscriber.",
+        "request_id {} - Adding '{}' '{}' as a new subscriber.",
+        request_id,
         form_data.email,
         form_data.name
     );
-    log::info!("Saving new subscirber details in the database");
+    log::info!(
+        "request_id {} - Saving new subscirber details in the database",
+        request_id
+    );
     match sqlx::query!(
         r#"
         INSERT INTO subscriptions (id, email, name, subscribed_at)
@@ -31,11 +37,18 @@ pub async fn subscribe(State(state): State<PgPool>, Form(form_data): Form<FormDa
     .await
     {
         Ok(_) => {
-            log::info!("New subscriber details have been saved");
+            log::info!(
+                "request_id {} - New subscriber details have been saved",
+                request_id
+            );
             StatusCode::OK
         }
         Err(e) => {
-            log::error!("Failed to execute query: {:?}", e);
+            log::error!(
+                "request_id {} - Failed to execute query: {:?}",
+                request_id,
+                e
+            );
             StatusCode::INTERNAL_SERVER_ERROR
         }
     }
