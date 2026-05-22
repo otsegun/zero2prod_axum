@@ -12,6 +12,16 @@ pub struct FormData {
 pub async fn subscribe(State(state): State<PgPool>, Form(form_data): Form<FormData>) -> StatusCode {
     //Generate a random unique identifier
     let request_id = Uuid::new_v4();
+
+    // Create an info span
+    let request_span = tracing::info_span!(
+        "Adding a new subscriber.", 
+        %request_id, subsciber_email = %form_data.email,
+        subscirber_name = %form_data.name);
+
+    // Enter request span
+    let _request_span_guard = request_span.enter();
+
     //Log subscriber email and name
     tracing::info!(
         "request_id {} - Adding '{}' '{}' as a new subscriber.",
@@ -20,9 +30,10 @@ pub async fn subscribe(State(state): State<PgPool>, Form(form_data): Form<FormDa
         form_data.name
     );
     tracing::info!(
-        "request_id {} - Saving new subscirber details in the database",
+        "request_id {} - Saving new subscriber details in the database",
         request_id
     );
+
     match sqlx::query!(
         r#"
         INSERT INTO subscriptions (id, email, name, subscribed_at)
