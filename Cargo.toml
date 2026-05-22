@@ -10,12 +10,17 @@ path = "src/lib.rs"
 axum = "0.8.9"
 chrono = { version = "0.4.44", default-features = false, features = ["clock"] }
 config = "0.15.22"
-env_logger = "0.11.10"
+# env_logger = "0.11.10"
 # log = "0.4.29"
 serde = { version = "1.0.228", features = ["derive"] }
 
 tokio = { version = "1.52.2", features = ["macros", "rt-multi-thread"] }
 tracing = { version = "0.1.44", features = ["log"] }
+tracing-bunyan-formatter = "0.3.10"
+tracing-subscriber = { version = "0.3.23", features = [
+    "registry",
+    "env-filter",
+] }
 uuid = { version = "1.23.1", features = ["v4"] }
 
 [dependencies.sqlx]
