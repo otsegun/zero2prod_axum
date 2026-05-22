@@ -1,8 +1,8 @@
 use axum::{Form, extract::State, http::StatusCode};
 use chrono::Utc;
 use sqlx::PgPool;
+use tracing::Instrument;
 use uuid::Uuid;
-
 #[derive(serde::Deserialize)]
 pub struct FormData {
     email: String,
@@ -34,6 +34,8 @@ pub async fn subscribe(State(state): State<PgPool>, Form(form_data): Form<FormDa
         request_id
     );
 
+    let query_span = tracing::info_span!("Saving new subscriber details in the database");
+
     match sqlx::query!(
         r#"
         INSERT INTO subscriptions (id, email, name, subscribed_at)
@@ -45,6 +47,7 @@ pub async fn subscribe(State(state): State<PgPool>, Form(form_data): Form<FormDa
         Utc::now()
     )
     .execute(&state)
+    .instrument(query_span)
     .await
     {
         Ok(_) => {
